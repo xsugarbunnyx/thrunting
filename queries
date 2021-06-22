@@ -1,0 +1,37 @@
+query templates for thrunting
+
+find other emails that have the same sender and malicious file via sha256: 
+    EmailAttachmentInfo
+    | where SenderFromAddress =~ "XYZ@example.com"
+    | where isnotempty(SHA256_GOES_HERE)
+    | join (
+    DeviceFileEvents
+    | project FileName, SHA256
+    ) on SHA256
+
+identify emails that were send from an address external to your company and where email was sent to more then 50 distinct corporate users 
+update corporatedomain.com to your corporate domain to have it excluded 
+update 50 if you want to adjust the distinct user count
+    EmailEvents 
+    | where SenderFromDomain != "mycompany.com" 
+    | summarize dcount(RecipientEmailAddress) by SenderFromAddress, NetworkMessageId, AttachmentCount, SendTime = Timestamp 
+    | where dcount_RecipientEmailAddress > 50
+ 
+find all emails within the last 7 days where the malware verdict == malware 
+can tweak this to find phish verdicts
+    EmailEvents
+    | where Timestamp > ago(7d)
+    | where MalwareFilterVerdict == "Malware" 
+    | project Timestamp, SenderMailFromAddress, RecipientEmailAddress, MalwareDetectionMethod, DeliveryAction 
+ 
+find malicious files on devices: 
+    DeviceFileEvents 
+    | where FileName == 'malicious.pdf.exe' 
+    
+find devices communicating to a malicious domain in last 7 days: 
+    let Domain = "http://maliciousdomain.com"; 
+    DeviceNetworkEvents 
+    | where Timestamp > ago(7d) and RemoteUrl contains Domain 
+    | project Timestamp, DeviceName, RemotePort, RemoteUrl 
+    | top 100 by Timestamp desc 
+
